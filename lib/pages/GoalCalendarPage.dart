@@ -1,14 +1,83 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
 
 class GoalCalendarPage extends StatefulWidget {
-  const GoalCalendarPage({super.key});
+  final String documentId;
+  const GoalCalendarPage({super.key, required this.documentId});
 
   @override
   State<GoalCalendarPage> createState() => _GoalCalendarPageState();
 }
 
 class _GoalCalendarPageState extends State<GoalCalendarPage> {
-  final List<bool> _checkedDays = List.generate(31, (_) => false); // 31 วัน
+  List<bool> _checked = [];
+  int totalUnits = 0;
+  double amountPerUnit = 0;
+  String goalName = '';
+  String savingMethod = '';
+  List<bool> _previousChecked = [];
+
+  @override
+  void initState() {
+    super.initState();
+    fetchGoalData();
+  }
+
+  Future<void> fetchGoalData() async {
+    final doc = await FirebaseFirestore.instance.collection('goals').doc(widget.documentId).get();
+    final data = doc.data();
+
+    if (data != null) {
+      final createdAt = (data['createdAt'] as Timestamp).toDate();
+      final targetDate = DateTime.tryParse(data['targetDate']) ?? DateTime.now();
+      goalName = data['name'] ?? '';
+      savingMethod = data['savingMethod'] ?? 'daily';
+
+      final completed = (data['completedUnits'] ?? 0) as int;
+
+      setState(() {
+        totalUnits = savingMethod == 'weekly'
+            ? (targetDate.difference(createdAt).inDays / 7).ceil()
+            : savingMethod == 'monthly'
+                ? (targetDate.difference(createdAt).inDays / 30).ceil()
+                : targetDate.difference(createdAt).inDays;
+
+        amountPerUnit = totalUnits > 0 ? (data['price'] / totalUnits) : data['price'];
+        _checked = List<bool>.generate(totalUnits, (i) => i < completed);
+        _previousChecked = List<bool>.from(_checked); // Clone for comparison
+      });
+    }
+  }
+
+  void saveProgress() async {
+    int completedUnits = _checked.where((e) => e).length;
+    double savedAmount = amountPerUnit * completedUnits;
+
+    await FirebaseFirestore.instance.collection('goals').doc(widget.documentId).update({
+      'savedAmount': savedAmount,
+      'completedUnits': completedUnits,
+    });
+
+    for (int i = 0; i < _checked.length; i++) {
+      if (_checked[i] && !_previousChecked[i]) {
+        await FirebaseFirestore.instance
+            .collection('goals')
+            .doc(widget.documentId)
+            .collection('history')
+            .add({
+          'amount': amountPerUnit,
+          'goalName': goalName,
+          'timestamp': FieldValue.serverTimestamp(),
+        });
+      }
+    }
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('บันทึกเรียบร้อย')));
+      Navigator.pop(context);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -16,141 +85,75 @@ class _GoalCalendarPageState extends State<GoalCalendarPage> {
       backgroundColor: const Color(0xFFA8E1E6),
       body: Column(
         children: [
-          // White header area
           Container(
             width: double.infinity,
             color: Colors.white,
             padding: const EdgeInsets.only(top: 50, bottom: 20),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: const [
-                Text(
-                  'M',
-                  style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Colors.black),
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.arrow_back_ios, color: Colors.black),
+                  onPressed: () => Navigator.pop(context),
                 ),
-                Icon(Icons.monetization_on, size: 26, color: Colors.black),
-                Text(
-                  'oneyQuest',
-                  style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Colors.black),
-                ),
+                const Spacer(),
+                const Text('M', style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Colors.black)),
+                const Icon(Icons.monetization_on, size: 26, color: Colors.black),
+                const Text('oneyQuest', style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Colors.black)),
+                const Spacer(flex: 2),
               ],
             ),
           ),
-          
-          // Main scrollable content
+
+          const SizedBox(height: 20),
+
           Expanded(
-            child: SingleChildScrollView(
-              child: Container(
-                margin: const EdgeInsets.fromLTRB(20, 20, 20, 20),
-                padding: const EdgeInsets.all(15),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Back button and goal title
-                    Row(
-                      children: [
-                        GestureDetector(
-                          onTap: () => Navigator.pop(context),
-                          child: const Icon(Icons.arrow_back_ios_new, size: 20, color: Colors.grey),
-                        ),
-                        const SizedBox(width: 10),
-                        const Text(
-                          'ซื้อiPhone 19',
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 10),
-
-                    // Month display
-                    const Center(
-                      child: Text(
-                        'เดือน มีนาคม 2568',
-                        style: TextStyle(fontSize: 14),
-                      ),
-                    ),
-
-                    const SizedBox(height: 15),
-
-                    // Calendar grid
-                    GridView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: 31,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              child: _checked.isEmpty
+                  ? const Center(child: CircularProgressIndicator())
+                  : GridView.builder(
+                      itemCount: totalUnits,
                       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 5,
-                        childAspectRatio: 1.4, // Further increased to reduce height
-                        mainAxisSpacing: 2, 
-                        crossAxisSpacing: 4,
+                        crossAxisCount: 4,
+                        crossAxisSpacing: 10,
+                        mainAxisSpacing: 10,
+                        childAspectRatio: 1.2,
                       ),
                       itemBuilder: (context, index) {
-                        return _buildCalendarDay(index);
+                        return Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text('${index + 1}'),
+                            Checkbox(
+                              value: _checked[index],
+                              onChanged: (val) {
+                                setState(() {
+                                  _checked[index] = val ?? false;
+                                });
+                              },
+                            )
+                          ],
+                        );
                       },
                     ),
-
-                    const SizedBox(height: 20),
-
-                    // Save button
-                    Center(
-                      child: ElevatedButton(
-                        onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('บันทึกเรียบร้อย')),
-                          );
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFA8E1E6),
-                          foregroundColor: Colors.black,
-                          padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 10),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                        child: const Text('บันทึก'),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
             ),
           ),
+
+          Padding(
+            padding: const EdgeInsets.only(bottom: 20),
+            child: ElevatedButton(
+              onPressed: saveProgress,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFA8E1E6),
+                foregroundColor: Colors.black,
+                padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              child: const Text('บันทึก'),
+            ),
+          )
         ],
       ),
-    );
-  }
-
-  Widget _buildCalendarDay(int index) {
-    int day = index + 1;
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          '$day',
-          style: const TextStyle(fontSize: 12),
-        ),
-        SizedBox(
-          height: 24,
-          width: 24,
-          child: Checkbox(
-            value: _checkedDays[index],
-            onChanged: (value) {
-              setState(() {
-                _checkedDays[index] = value ?? false;
-              });
-            },
-            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            visualDensity: VisualDensity.compact,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-        ),
-      ],
     );
   }
 }

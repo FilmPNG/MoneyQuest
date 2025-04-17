@@ -1,7 +1,70 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
 
-class NotificationPage extends StatelessWidget {
+class NotificationPage extends StatefulWidget {
   const NotificationPage({super.key});
+
+  @override
+  State<NotificationPage> createState() => _NotificationPageState();
+}
+
+class _NotificationPageState extends State<NotificationPage> {
+  List<String> messages = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _checkGoalsAndNotify();
+  }
+
+  Future<void> _checkGoalsAndNotify() async {
+    final now = DateTime.now();
+    final goals = await FirebaseFirestore.instance.collection('goals').get();
+
+    for (var doc in goals.docs) {
+      final data = doc.data();
+      final name = data['name'] ?? 'ไม่ระบุชื่อ';
+      final price = (data['price'] ?? 0).toDouble();
+      final saved = (data['savedAmount'] ?? 0).toDouble();
+      final savingMethod = data['savingMethod'] ?? 'daily';
+      final createdAt = (data['createdAt'] as Timestamp).toDate();
+      final targetDate = DateTime.tryParse(data['targetDate'] ?? '') ?? now;
+      final duration = targetDate.difference(createdAt).inDays;
+
+      int elapsedUnits = savingMethod == 'daily'
+          ? now.difference(createdAt).inDays
+          : savingMethod == 'weekly'
+              ? (now.difference(createdAt).inDays / 7).floor()
+              : (now.difference(createdAt).inDays / 30).floor();
+
+      double expected = savingMethod == 'daily'
+          ? (price / duration) * elapsedUnits
+          : savingMethod == 'weekly'
+              ? (price / (duration / 7)) * elapsedUnits
+              : (price / (duration / 30)) * elapsedUnits;
+
+      if (saved < expected) {
+        final remaining = (expected - saved).clamp(1, price);
+        final msg = 'โปรดอย่าลืมออมเงินสำหรับ $name จำนวน ${remaining.toStringAsFixed(2)} ฿';
+        messages.add(msg);
+
+        // แสดงแจ้งเตือนในแอปทันทีแบบ in-app (ไม่ใช่ระบบ OS)
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(msg),
+              behavior: SnackBarBehavior.floating,
+              backgroundColor: Colors.orange.shade600,
+              duration: const Duration(seconds: 5),
+            ),
+          );
+        });
+      }
+    }
+
+    setState(() {});
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -10,7 +73,7 @@ class NotificationPage extends StatelessWidget {
         selectedItemColor: Colors.lightBlueAccent,
         unselectedItemColor: Colors.grey,
         type: BottomNavigationBarType.fixed,
-        currentIndex: 1, // Notification tab
+        currentIndex: 1,
         onTap: (index) {
           switch (index) {
             case 0:
@@ -40,11 +103,9 @@ class NotificationPage extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: const [
-                Text('M',
-                    style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+                Text('M', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
                 Icon(Icons.monetization_on, size: 28),
-                Text('neyQuest',
-                    style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+                Text('neyQuest', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
               ],
             ),
           ),
@@ -74,55 +135,26 @@ class NotificationPage extends StatelessWidget {
             padding: EdgeInsets.fromLTRB(20, 15, 20, 10),
             child: Align(
               alignment: Alignment.centerLeft,
-              child: Text(
-                'การแจ้งเตือน',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
+              child: Text('การแจ้งเตือน', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             ),
           ),
           Expanded(
             child: Container(
               color: const Color(0xFFA8E1E6),
               padding: const EdgeInsets.symmetric(horizontal: 15),
-              child: ListView(
-                children: [
-                  _notificationSection('วันนี้', '11:30น.', [
-                    'โปรดอย่าลืมออมเงินสำหรับ ค่าอาหารแมว จำนวน 20 ฿',
-                    'โปรดอย่าลืมออมเงินสำหรับ ค่า iPhone 19 จำนวน 30 ฿',
-                  ]),
-                  _notificationSection('5 มี.ค. 2568', '11:31น.', [
-                    'โปรดอย่าลืมออมเงินสำหรับ ค่าอาหารแมว จำนวน 20 ฿',
-                    'โปรดอย่าลืมออมเงินสำหรับ ค่า iPhone 19 จำนวน 30 ฿',
-                  ]),
-                ],
+              child: ListView.builder(
+                itemCount: messages.length,
+                itemBuilder: (context, index) => Card(
+                  child: ListTile(
+                    leading: const Icon(Icons.notifications_active),
+                    title: Text(messages[index]),
+                  ),
+                ),
               ),
             ),
           ),
         ],
       ),
-    );
-  }
-
-  Widget _notificationSection(String date, String time, List<String> messages) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(date, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-            Text(time, style: const TextStyle(fontSize: 14)),
-          ],
-        ),
-        const SizedBox(height: 5),
-        ...messages.map((msg) => Card(
-              child: ListTile(
-                leading: const Icon(Icons.notifications_active),
-                title: Text(msg),
-              ),
-            )),
-        const SizedBox(height: 10),
-      ],
     );
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:io';
+
 
 class AddGoalPage extends StatefulWidget {
   const AddGoalPage({super.key});
@@ -10,10 +11,10 @@ class AddGoalPage extends StatefulWidget {
 }
 
 class _AddGoalPageState extends State<AddGoalPage> {
+  final TextEditingController _goalNameController = TextEditingController();
+  final TextEditingController _priceController = TextEditingController();
+  String? _savingMethod;
   DateTime? selectedDate;
-  File? selectedImage;
-
-  final picker = ImagePicker();
 
   Future<void> _pickDate() async {
     final DateTime? picked = await showDatePicker(
@@ -22,20 +23,81 @@ class _AddGoalPageState extends State<AddGoalPage> {
       firstDate: DateTime(2023),
       lastDate: DateTime(2100),
     );
-    if (picked != null && picked != selectedDate) {
+    if (picked != null) {
       setState(() {
         selectedDate = picked;
       });
     }
   }
 
-  Future<void> _pickImage() async {
-    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
-    if (image != null) {
-      setState(() {
-        selectedImage = File(image.path);
-      });
+  Future<void> _saveGoalToFirestore() async {
+    if (_goalNameController.text.isEmpty ||
+        _priceController.text.isEmpty ||
+        selectedDate == null ||
+        _savingMethod == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("กรุณากรอกข้อมูลให้ครบถ้วน")),
+      );
+      return;
     }
+
+    try {
+      final goalData = {
+        'name': _goalNameController.text,
+        'price': double.tryParse(_priceController.text) ?? 0.0,
+        'targetDate': selectedDate!.toIso8601String(),
+        'savingMethod': _savingMethod,
+        'createdAt': FieldValue.serverTimestamp(),
+      };
+
+      await FirebaseFirestore.instance.collection('goals').add(goalData);
+      _showSuccessDialog();
+
+
+      // ScaffoldMessenger.of(context).showSnackBar(
+      //   const SnackBar(content: Text("สร้างเป้าหมายสำเร็จแล้ว!")),
+      // );
+
+      _goalNameController.clear();
+      _priceController.clear();
+      setState(() {
+        selectedDate = null;
+        _savingMethod = null;
+      });
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("เกิดข้อผิดพลาด: $e")),
+      );
+    }
+  }
+
+  void _showSuccessDialog() {
+  showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      return AlertDialog(
+        title: const Text('สำเร็จ!'),
+        content: const Text('สร้างเป้าหมายของคุณเรียบร้อยแล้ว'),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop(); // ปิด dialog
+              Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false); // กลับหน้า Home และล้าง stack
+            },
+            child: const Text('ตกลง'),
+          ),
+        ],
+      );
+    },
+  );
+}
+
+
+  @override
+  void dispose() {
+    _goalNameController.dispose();
+    _priceController.dispose();
+    super.dispose();
   }
 
   @override
@@ -44,7 +106,6 @@ class _AddGoalPageState extends State<AddGoalPage> {
       backgroundColor: const Color(0xFFA8E1E6),
       body: Column(
         children: [
-          // Header
           Container(
             width: double.infinity,
             color: Colors.white,
@@ -58,10 +119,7 @@ class _AddGoalPageState extends State<AddGoalPage> {
               ],
             ),
           ),
-
           const SizedBox(height: 20),
-
-          // Form Content
           Expanded(
             child: SingleChildScrollView(
               child: Container(
@@ -74,7 +132,6 @@ class _AddGoalPageState extends State<AddGoalPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Back + title
                     Row(
                       children: [
                         GestureDetector(
@@ -85,13 +142,11 @@ class _AddGoalPageState extends State<AddGoalPage> {
                         const Text('เพิ่มเป้าหมาย', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                       ],
                     ),
-
                     const SizedBox(height: 20),
-                    inputField('ชื่อเป้าหมาย'),
+                    inputField('ชื่อเป้าหมาย', _goalNameController),
                     const SizedBox(height: 15),
-                    inputField('ราคา'),
+                    inputField('ราคา', _priceController),
                     const SizedBox(height: 15),
-
                     const Text('วันที่ต้องการบรรลุเป้าหมาย', style: TextStyle(fontSize: 16)),
                     const SizedBox(height: 10),
                     GestureDetector(
@@ -116,7 +171,6 @@ class _AddGoalPageState extends State<AddGoalPage> {
                         ),
                       ),
                     ),
-
                     const SizedBox(height: 20),
                     const Text('วิธีการออม', style: TextStyle(fontSize: 16)),
                     const SizedBox(height: 10),
@@ -126,45 +180,18 @@ class _AddGoalPageState extends State<AddGoalPage> {
                         contentPadding: const EdgeInsets.symmetric(horizontal: 16),
                       ),
                       hint: const Text('เลือกวิธีการออม'),
+                      value: _savingMethod,
                       items: const [
                         DropdownMenuItem(value: 'daily', child: Text('รายวัน')),
                         DropdownMenuItem(value: 'weekly', child: Text('รายสัปดาห์')),
                         DropdownMenuItem(value: 'monthly', child: Text('รายเดือน')),
                       ],
-                      onChanged: (value) {},
+                      onChanged: (value) {
+                        setState(() {
+                          _savingMethod = value;
+                        });
+                      },
                     ),
-
-                    const SizedBox(height: 20),
-                    const Text('อัพโหลดรูปภาพ', style: TextStyle(fontSize: 16)),
-                    const SizedBox(height: 10),
-                    GestureDetector(
-                      onTap: _pickImage,
-                      child: Container(
-                        height: 160,
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.grey),
-                          borderRadius: BorderRadius.circular(10),
-                          color: const Color(0xFFF2F2F2),
-                        ),
-                        child: selectedImage != null
-                            ? ClipRRect(
-                                borderRadius: BorderRadius.circular(10),
-                                child: Image.file(
-                                  selectedImage!,
-                                  fit: BoxFit.cover,
-                                  width: double.infinity,
-                                ),
-                              )
-                            : const Center(
-                                child: Text(
-                                  'อัพโหลดรูปภาพของคุณ\n.JPG, .PNG',
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(color: Colors.grey),
-                                ),
-                              ),
-                      ),
-                    ),
-
                     const SizedBox(height: 30),
                     Center(
                       child: ElevatedButton(
@@ -175,12 +202,7 @@ class _AddGoalPageState extends State<AddGoalPage> {
                           ),
                           padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 14),
                         ),
-                        onPressed: () {
-                          // ยังไม่ต้องเก็บลง database
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text("สร้างเป้าหมายสำเร็จ (ยังไม่บันทึก DB)")),
-                          );
-                        },
+                        onPressed: _saveGoalToFirestore,
                         child: const Text('สร้างเป้าหมาย'),
                       ),
                     ),
@@ -195,8 +217,10 @@ class _AddGoalPageState extends State<AddGoalPage> {
     );
   }
 
-  Widget inputField(String hint) {
+  Widget inputField(String hint, TextEditingController controller) {
     return TextField(
+      controller: controller,
+      keyboardType: hint == 'ราคา' ? TextInputType.number : TextInputType.text,
       decoration: InputDecoration(
         hintText: hint,
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
