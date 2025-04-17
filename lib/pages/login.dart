@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({Key? key}) : super(key: key);
@@ -8,23 +9,32 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  final TextEditingController _usernameController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   String _errorMessage = '';
 
-  void _login() {
-    // Check for admin credentials
-    if (_usernameController.text == 'admin' && _passwordController.text == '1234') {
-      // Clear error message
+  Future<void> _loginWithEmail() async {
+    try {
+      final credential = await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text.trim(),
+      );
+
+      // ล็อกอินสำเร็จ
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Login successful!')),
+      );
+      Navigator.pushReplacementNamed(context, '/'); // หน้า home
+
+    } on FirebaseAuthException catch (e) {
       setState(() {
-        _errorMessage = '';
-      });
-      // Navigate to home page
-      Navigator.pushReplacementNamed(context, '/');
-    } else {
-      // Show error message
-      setState(() {
-        _errorMessage = 'Invalid username or password';
+        if (e.code == 'user-not-found') {
+          _errorMessage = 'No user found with this email.';
+        } else if (e.code == 'wrong-password') {
+          _errorMessage = 'Incorrect password.';
+        } else {
+          _errorMessage = e.message ?? 'Login failed';
+        }
       });
     }
   }
@@ -34,7 +44,6 @@ class _LoginPageState extends State<LoginPage> {
     return Scaffold(
       body: Column(
         children: [
-          // White top section with logo
           Container(
             width: double.infinity,
             color: Colors.white,
@@ -42,35 +51,15 @@ class _LoginPageState extends State<LoginPage> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: const [
-                Text(
-                  'M',
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black,
-                  ),
-                ),
-                Icon(
-                  Icons.monetization_on,
-                  size: 28,
-                ),
-                Text(
-                  'neyQuest',
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black,
-                  ),
-                ),
+                Text('M', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+                Icon(Icons.monetization_on, size: 28),
+                Text('neyQuest', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
               ],
             ),
           ),
-          // Light blue section with login form
           Expanded(
             child: Container(
-              decoration: const BoxDecoration(
-                color: Color(0xFFA8E1E6),
-              ),
+              decoration: const BoxDecoration(color: Color(0xFFA8E1E6)),
               child: Center(
                 child: SingleChildScrollView(
                   child: Padding(
@@ -84,46 +73,32 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                       child: Column(
                         children: [
-                          // Login title
-                          const Text(
-                            'Login',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.black54,
-                            ),
-                          ),
+                          const Text('Login', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black54)),
                           const SizedBox(height: 20),
-                          
-                          // Username field
+
+                          // Email
                           TextField(
-                            controller: _usernameController,
+                            controller: _emailController,
+                            keyboardType: TextInputType.emailAddress,
                             decoration: InputDecoration(
-                              hintText: 'Username',
-                              hintStyle: const TextStyle(color: Colors.grey),
+                              hintText: 'Email',
                               contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                               filled: true,
                               fillColor: Colors.white,
                               border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(10),
-                                borderSide: BorderSide(color: Colors.grey.shade300),
-                              ),
-                              enabledBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(10),
                                 borderSide: BorderSide(color: Colors.grey.shade300),
                               ),
                             ),
                           ),
                           const SizedBox(height: 15),
-                          
-                          // Password field
+
+                          // Password
                           TextField(
                             controller: _passwordController,
                             obscureText: true,
                             decoration: InputDecoration(
                               hintText: 'Password',
-                              hintStyle: const TextStyle(color: Colors.grey),
                               contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                               filled: true,
                               fillColor: Colors.white,
@@ -131,29 +106,22 @@ class _LoginPageState extends State<LoginPage> {
                                 borderRadius: BorderRadius.circular(10),
                                 borderSide: BorderSide(color: Colors.grey.shade300),
                               ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(10),
-                                borderSide: BorderSide(color: Colors.grey.shade300),
-                              ),
                             ),
                           ),
-                          
-                          // Error message
+
+                          // Error
                           if (_errorMessage.isNotEmpty)
                             Padding(
                               padding: const EdgeInsets.only(top: 10.0),
-                              child: Text(
-                                _errorMessage,
-                                style: const TextStyle(color: Colors.red, fontSize: 14),
-                              ),
+                              child: Text(_errorMessage, style: const TextStyle(color: Colors.red)),
                             ),
                           const SizedBox(height: 20),
-                          
+
                           // Login button
                           SizedBox(
                             width: double.infinity,
                             child: ElevatedButton(
-                              onPressed: _login,
+                              onPressed: _loginWithEmail,
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.lightBlueAccent,
                                 foregroundColor: Colors.white,
@@ -162,36 +130,21 @@ class _LoginPageState extends State<LoginPage> {
                                   borderRadius: BorderRadius.circular(10),
                                 ),
                               ),
-                              child: const Text(
-                                'Login',
-                                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                              ),
+                              child: const Text('Login', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                             ),
                           ),
                           const SizedBox(height: 20),
-                          
-                          // Sign up option
+
+                          // Sign up link
                           GestureDetector(
                             onTap: () {
-                              // Navigate to sign up page
                               Navigator.pushNamed(context, '/signup');
                             },
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: const [
-                                Text(
-                                  'Don\'t have an account? ',
-                                  style: TextStyle(
-                                    color: Colors.black54,
-                                  ),
-                                ),
-                                Text(
-                                  'Sign Up',
-                                  style: TextStyle(
-                                    color: Colors.lightBlueAccent,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
+                                Text('Don\'t have an account? ', style: TextStyle(color: Colors.black54)),
+                                Text('Sign Up', style: TextStyle(color: Colors.lightBlueAccent, fontWeight: FontWeight.bold)),
                               ],
                             ),
                           ),
@@ -210,7 +163,7 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   void dispose() {
-    _usernameController.dispose();
+    _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
   }

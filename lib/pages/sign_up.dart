@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
-
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class SignUpPage extends StatefulWidget {
   const SignUpPage({Key? key}) : super(key: key);
@@ -19,14 +19,18 @@ class _SignUpPageState extends State<SignUpPage> {
   final TextEditingController _birthDateController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController = TextEditingController();
+
   String _errorMessage = '';
+  Map<String, String> _fieldErrors = {};
 
   Future<void> _selectDate(BuildContext context) async {
     final DateTime? picked = await showDatePicker(
       context: context,
-      initialDate: DateTime.now(),
+      initialDate: DateTime(2000),
       firstDate: DateTime(1900),
       lastDate: DateTime.now(),
+      initialDatePickerMode: DatePickerMode.year,
+      helpText: 'Select your birth date',
     );
     if (picked != null) {
       setState(() {
@@ -36,41 +40,118 @@ class _SignUpPageState extends State<SignUpPage> {
   }
 
   bool _validateForm() {
-    // Check for empty required fields
-    if (_usernameController.text.isEmpty ||
-        _nameController.text.isEmpty ||
-        _lastNameController.text.isEmpty ||
-        _emailController.text.isEmpty ||
-        _passwordController.text.isEmpty ||
-        _confirmPasswordController.text.isEmpty) {
-      setState(() {
-        _errorMessage = 'Please fill in all required fields';
-      });
-      return false;
+    _fieldErrors.clear();
+
+    if (_usernameController.text.isEmpty) {
+      _fieldErrors['username'] = 'กรุณากรอกชื่อผู้ใช้';
     }
 
-    // Validate email format
-    final emailRegExp = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
-    if (!emailRegExp.hasMatch(_emailController.text)) {
-      setState(() {
-        _errorMessage = 'Please enter a valid email address';
-      });
-      return false;
+    if (_nameController.text.isEmpty) {
+      _fieldErrors['name'] = 'กรุณากรอกชื่อ';
     }
 
-    // Check if passwords match
-    if (_passwordController.text != _confirmPasswordController.text) {
-      setState(() {
-        _errorMessage = 'Passwords do not match';
-      });
-      return false;
+    if (_lastNameController.text.isEmpty) {
+      _fieldErrors['lastName'] = 'กรุณากรอกนามสกุล';
     }
 
-    // If all validations pass
+    if (_emailController.text.isEmpty) {
+      _fieldErrors['email'] = 'กรุณากรอกอีเมล';
+    } else if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(_emailController.text)) {
+      _fieldErrors['email'] = 'กรุณากรอกอีเมลให้ถูกต้อง';
+    }
+
+    if (_phoneController.text.isEmpty) {
+      _fieldErrors['phone'] = 'กรุณากรอกเบอร์โทร';
+    } else if (!RegExp(r'^\d{10}$').hasMatch(_phoneController.text)) {
+      _fieldErrors['phone'] = 'เบอร์โทรต้องเป็นตัวเลข 10 หลัก';
+    }
+
+    if (_passwordController.text.isEmpty || _confirmPasswordController.text.isEmpty) {
+      _fieldErrors['password'] = 'กรุณากรอกรหัสผ่านและยืนยันรหัสผ่าน';
+    } else if (_passwordController.text != _confirmPasswordController.text) {
+      _fieldErrors['password'] = 'รหัสผ่านไม่ตรงกัน';
+    }
+
     setState(() {
-      _errorMessage = '';
+      _errorMessage = _fieldErrors.isEmpty ? '' : 'กรุณากรอกข้อมูลให้ถูกต้อง';
     });
-    return true;
+
+    return _fieldErrors.isEmpty;
+  }
+
+  Future<void> _registerUser() async {
+    try {
+      UserCredential userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text.trim(),
+      );
+
+      String uid = userCredential.user!.uid;
+
+      await FirebaseFirestore.instance.collection('users').doc(uid).set({
+        'username': _usernameController.text.trim(),
+        'name': _nameController.text.trim(),
+        'lastName': _lastNameController.text.trim(),
+        'email': _emailController.text.trim(),
+        'phone': _phoneController.text.trim(),
+        'birthDate': _birthDateController.text.trim(),
+        'createdAt': Timestamp.now(),
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Account created successfully!')),
+      );
+      Navigator.pushReplacementNamed(context, '/login');
+    } on FirebaseAuthException catch (e) {
+      setState(() {
+        _errorMessage = e.message ?? 'Registration failed';
+      });
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'An error occurred. Please try again.';
+      });
+    }
+  }
+
+  Widget _buildTextField(
+    TextEditingController controller,
+    String placeholder, {
+    bool isPassword = false,
+    TextInputType keyboardType = TextInputType.text,
+    String? errorKey,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextField(
+          controller: controller,
+          obscureText: isPassword,
+          keyboardType: keyboardType,
+          decoration: InputDecoration(
+            hintText: placeholder,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            filled: true,
+            fillColor: Colors.white,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide(color: Colors.grey.shade300),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide(color: Colors.grey.shade300),
+            ),
+          ),
+        ),
+        if (errorKey != null && _fieldErrors.containsKey(errorKey))
+          Padding(
+            padding: const EdgeInsets.only(top: 4, left: 8),
+            child: Text(
+              _fieldErrors[errorKey]!,
+              style: const TextStyle(color: Colors.red, fontSize: 12),
+            ),
+          ),
+      ],
+    );
   }
 
   @override
@@ -78,7 +159,6 @@ class _SignUpPageState extends State<SignUpPage> {
     return Scaffold(
       body: Column(
         children: [
-          // White top section with logo
           Container(
             width: double.infinity,
             color: Colors.white,
@@ -86,35 +166,15 @@ class _SignUpPageState extends State<SignUpPage> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: const [
-                Text(
-                  'M',
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black,
-                  ),
-                ),
-                Icon(
-                  Icons.monetization_on,
-                  size: 28,
-                ),
-                Text(
-                  'neyQuest',
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black,
-                  ),
-                ),
+                Text('M', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+                Icon(Icons.monetization_on, size: 28),
+                Text('neyQuest', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
               ],
             ),
           ),
-          // Light blue section with sign up form
           Expanded(
             child: Container(
-              decoration: const BoxDecoration(
-                color: Color(0xFFA8E1E6),
-              ),
+              decoration: const BoxDecoration(color: Color(0xFFA8E1E6)),
               child: Center(
                 child: SingleChildScrollView(
                   child: Padding(
@@ -128,101 +188,69 @@ class _SignUpPageState extends State<SignUpPage> {
                       ),
                       child: Column(
                         children: [
-                          // Header with back button and title
                           Row(
                             children: [
                               IconButton(
-                                icon: const Icon(
-                                  Icons.chevron_left,
-                                  color: Colors.lightBlueAccent,
-                                  size: 30,
-                                ),
-                                onPressed: () {
-                                  Navigator.pushReplacementNamed(context, '/login');
-                                },
+                                icon: const Icon(Icons.chevron_left, color: Colors.lightBlueAccent, size: 30),
+                                onPressed: () => Navigator.pushReplacementNamed(context, '/login'),
                               ),
                               const Expanded(
                                 child: Text(
                                   'Sign Up',
                                   textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    fontSize: 24,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.black54,
-                                  ),
+                                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black54),
                                 ),
                               ),
-                              // Spacer to balance the layout
                               const SizedBox(width: 48),
                             ],
                           ),
                           const SizedBox(height: 20),
-                          
-                          // Sign up form fields
-                          _buildTextField(_usernameController, 'Username'),
+                          _buildTextField(_usernameController, 'Username', errorKey: 'username'),
                           const SizedBox(height: 12),
-                          _buildTextField(_nameController, 'Name'),
+                          _buildTextField(_nameController, 'Name', errorKey: 'name'),
                           const SizedBox(height: 12),
-                          _buildTextField(_lastNameController, 'Last name'),
+                          _buildTextField(_lastNameController, 'Last name', errorKey: 'lastName'),
                           const SizedBox(height: 12),
-                          _buildTextField(_emailController, 'Email', keyboardType: TextInputType.emailAddress),
+                          _buildTextField(_emailController, 'Email', keyboardType: TextInputType.emailAddress, errorKey: 'email'),
                           const SizedBox(height: 12),
-                          _buildTextField(_phoneController, 'Phone', keyboardType: TextInputType.phone),
+                          _buildTextField(_phoneController, 'Phone', keyboardType: TextInputType.phone, errorKey: 'phone'),
                           const SizedBox(height: 12),
-                          
-                          // Date of birth field with calendar icon
-                          GestureDetector(
+                          TextField(
+                            controller: _birthDateController,
+                            readOnly: true,
                             onTap: () => _selectDate(context),
-                            child: TextField(
-                              controller: _birthDateController,
-                              decoration: InputDecoration(
-                                hintText: 'Date of birth',
-                                hintStyle: const TextStyle(color: Colors.grey),
-                                suffixIcon: const Icon(Icons.calendar_today, color: Colors.grey),
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                                filled: true,
-                                fillColor: Colors.white,
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                  borderSide: BorderSide(color: Colors.grey.shade300),
-                                ),
-                                enabledBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                  borderSide: BorderSide(color: Colors.grey.shade300),
-                                ),
+                            decoration: InputDecoration(
+                              hintText: 'Date of Birth',
+                              suffixIcon: const Icon(Icons.calendar_today, color: Colors.grey),
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                              filled: true,
+                              fillColor: Colors.white,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10),
+                                borderSide: BorderSide(color: Colors.grey.shade300),
                               ),
-                              readOnly: true,
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10),
+                                borderSide: BorderSide(color: Colors.grey.shade300),
+                              ),
                             ),
                           ),
                           const SizedBox(height: 12),
-                          
-                          _buildTextField(_passwordController, 'Password', isPassword: true),
+                          _buildTextField(_passwordController, 'Password', isPassword: true, errorKey: 'password'),
                           const SizedBox(height: 12),
-                          
                           _buildTextField(_confirmPasswordController, 'Confirm Password', isPassword: true),
-                          
-                          // Error message
                           if (_errorMessage.isNotEmpty)
                             Padding(
                               padding: const EdgeInsets.only(top: 12.0),
-                              child: Text(
-                                _errorMessage,
-                                style: const TextStyle(color: Colors.red, fontSize: 14),
-                              ),
+                              child: Text(_errorMessage, style: const TextStyle(color: Colors.red, fontSize: 14)),
                             ),
                           const SizedBox(height: 20),
-                          
-                          // Create Account button
                           SizedBox(
                             width: double.infinity,
                             child: ElevatedButton(
                               onPressed: () {
                                 if (_validateForm()) {
-                                  // Success - go back to login
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('Account created successfully!')),
-                                  );
-                                  Navigator.pushReplacementNamed(context, '/login');
+                                  _registerUser();
                                 }
                               },
                               style: ElevatedButton.styleFrom(
@@ -233,35 +261,17 @@ class _SignUpPageState extends State<SignUpPage> {
                                   borderRadius: BorderRadius.circular(10),
                                 ),
                               ),
-                              child: const Text(
-                                'Create Account',
-                                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                              ),
+                              child: const Text('Create Account', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                             ),
                           ),
-                          
                           const SizedBox(height: 16),
-                          // Login option
                           GestureDetector(
-                            onTap: () {
-                              Navigator.pushReplacementNamed(context, '/login');
-                            },
+                            onTap: () => Navigator.pushReplacementNamed(context, '/login'),
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: const [
-                                Text(
-                                  'Already have an account? ',
-                                  style: TextStyle(
-                                    color: Colors.black54,
-                                  ),
-                                ),
-                                Text(
-                                  'Login',
-                                  style: TextStyle(
-                                    color: Colors.lightBlueAccent,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
+                                Text('Already have an account? ', style: TextStyle(color: Colors.black54)),
+                                Text('Login', style: TextStyle(color: Colors.lightBlueAccent, fontWeight: FontWeight.bold)),
                               ],
                             ),
                           ),
@@ -274,34 +284,6 @@ class _SignUpPageState extends State<SignUpPage> {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildTextField(
-    TextEditingController controller,
-    String placeholder, {
-    bool isPassword = false,
-    TextInputType keyboardType = TextInputType.text,
-  }) {
-    return TextField(
-      controller: controller,
-      obscureText: isPassword,
-      keyboardType: keyboardType,
-      decoration: InputDecoration(
-        hintText: placeholder,
-        hintStyle: const TextStyle(color: Colors.grey),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        filled: true,
-        fillColor: Colors.white,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(color: Colors.grey.shade300),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(color: Colors.grey.shade300),
-        ),
       ),
     );
   }

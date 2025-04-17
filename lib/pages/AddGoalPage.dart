@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'dart:io';
-
+import 'package:firebase_auth/firebase_auth.dart';
 
 class AddGoalPage extends StatefulWidget {
   const AddGoalPage({super.key});
@@ -42,21 +41,26 @@ class _AddGoalPageState extends State<AddGoalPage> {
     }
 
     try {
+      final currentUser = FirebaseAuth.instance.currentUser;
+
+      if (currentUser == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("คุณยังไม่ได้ login")),
+        );
+        return;
+      }
+
       final goalData = {
-        'name': _goalNameController.text,
+        'name': _goalNameController.text.trim(),
         'price': double.tryParse(_priceController.text) ?? 0.0,
         'targetDate': selectedDate!.toIso8601String(),
         'savingMethod': _savingMethod,
         'createdAt': FieldValue.serverTimestamp(),
+        'userId': currentUser.uid, // ✅ จำเป็นต้องมี
       };
 
       await FirebaseFirestore.instance.collection('goals').add(goalData);
       _showSuccessDialog();
-
-
-      // ScaffoldMessenger.of(context).showSnackBar(
-      //   const SnackBar(content: Text("สร้างเป้าหมายสำเร็จแล้ว!")),
-      // );
 
       _goalNameController.clear();
       _priceController.clear();
@@ -72,26 +76,25 @@ class _AddGoalPageState extends State<AddGoalPage> {
   }
 
   void _showSuccessDialog() {
-  showDialog(
-    context: context,
-    builder: (BuildContext context) {
-      return AlertDialog(
-        title: const Text('สำเร็จ!'),
-        content: const Text('สร้างเป้าหมายของคุณเรียบร้อยแล้ว'),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop(); // ปิด dialog
-              Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false); // กลับหน้า Home และล้าง stack
-            },
-            child: const Text('ตกลง'),
-          ),
-        ],
-      );
-    },
-  );
-}
-
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('สำเร็จ!'),
+          content: const Text('สร้างเป้าหมายของคุณเรียบร้อยแล้ว'),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+              },
+              child: const Text('ตกลง'),
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   @override
   void dispose() {

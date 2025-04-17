@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:intl/intl.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class NotificationPage extends StatefulWidget {
   const NotificationPage({super.key});
@@ -11,24 +11,74 @@ class NotificationPage extends StatefulWidget {
 
 class _NotificationPageState extends State<NotificationPage> {
   List<String> messages = [];
+  double totalSaved = 0.0;
+  String userName = '';
 
   @override
   void initState() {
     super.initState();
+    _fetchTotalSaved();
     _checkGoalsAndNotify();
+    _fetchUserName();
+  }
+
+  Future<void> _fetchTotalSaved() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+
+    final snapshot = await FirebaseFirestore.instance
+        .collection('goals')
+        .where('userId', isEqualTo: uid)
+        .get();
+
+    double sum = 0;
+    for (var doc in snapshot.docs) {
+      final data = doc.data();
+      final saved = (data['savedAmount'] ?? 0).toDouble();
+      sum += saved;
+    }
+
+    setState(() {
+      totalSaved = sum;
+    });
+  }
+
+  Future<void> _fetchUserName() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+
+    final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+    final data = doc.data();
+
+    if (data != null) {
+      setState(() {
+        userName = data['name'] ?? '';
+      });
+    }
   }
 
   Future<void> _checkGoalsAndNotify() async {
     final now = DateTime.now();
-    final goals = await FirebaseFirestore.instance.collection('goals').get();
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
 
-    for (var doc in goals.docs) {
+    final snapshot = await FirebaseFirestore.instance
+        .collection('goals')
+        .where('userId', isEqualTo: uid)
+        .get();
+
+    for (var doc in snapshot.docs) {
       final data = doc.data();
       final name = data['name'] ?? 'ไม่ระบุชื่อ';
       final price = (data['price'] ?? 0).toDouble();
       final saved = (data['savedAmount'] ?? 0).toDouble();
       final savingMethod = data['savingMethod'] ?? 'daily';
-      final createdAt = (data['createdAt'] as Timestamp).toDate();
+
+      final createdAtRaw = data['createdAt'];
+      final createdAt = (createdAtRaw is Timestamp)
+          ? createdAtRaw.toDate()
+          : now.subtract(const Duration(days: 1));
+
       final targetDate = DateTime.tryParse(data['targetDate'] ?? '') ?? now;
       final duration = targetDate.difference(createdAt).inDays;
 
@@ -44,19 +94,32 @@ class _NotificationPageState extends State<NotificationPage> {
               ? (price / (duration / 7)) * elapsedUnits
               : (price / (duration / 30)) * elapsedUnits;
 
-      if (saved < expected) {
+      final nowNoon = DateTime(now.year, now.month, now.day, 12);
+      final lastNotify = data['lastNotify']?.toDate();
+      final shouldNotify = () {
+        if (savingMethod == 'daily') {
+          return lastNotify == null || nowNoon.difference(lastNotify).inHours >= 24;
+        } else if (savingMethod == 'weekly') {
+          return lastNotify == null || now.difference(lastNotify).inDays >= 7;
+        } else {
+          return lastNotify == null || now.difference(lastNotify).inDays >= 30;
+        }
+      }();
+
+      if (saved < expected && shouldNotify) {
         final remaining = (expected - saved).clamp(1, price);
-        final msg = 'โปรดอย่าลืมออมเงินสำหรับ $name จำนวน ${remaining.toStringAsFixed(2)} ฿';
+        final msg = 'โปรดอย่าลืมออมเงินสำหรับ "$name" จำนวน ${remaining.toStringAsFixed(2)} ฿';
         messages.add(msg);
 
-        // แสดงแจ้งเตือนในแอปทันทีแบบ in-app (ไม่ใช่ระบบ OS)
+        await doc.reference.update({'lastNotify': now});
+
         WidgetsBinding.instance.addPostFrameCallback((_) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(msg),
+              backgroundColor: Colors.orange.shade700,
               behavior: SnackBarBehavior.floating,
-              backgroundColor: Colors.orange.shade600,
-              duration: const Duration(seconds: 5),
+              duration: const Duration(seconds: 4),
             ),
           );
         });
@@ -69,11 +132,12 @@ class _NotificationPageState extends State<NotificationPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFA8E1E6),
       bottomNavigationBar: BottomNavigationBar(
+        currentIndex: 1,
         selectedItemColor: Colors.lightBlueAccent,
         unselectedItemColor: Colors.grey,
         type: BottomNavigationBarType.fixed,
-        currentIndex: 1,
         onTap: (index) {
           switch (index) {
             case 0:
@@ -99,17 +163,18 @@ class _NotificationPageState extends State<NotificationPage> {
       body: Column(
         children: [
           const SizedBox(height: 40),
-          Center(
+          Container(
+            color: Colors.white,
+            padding: const EdgeInsets.symmetric(vertical: 12),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: const [
-                Text('M', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
-                Icon(Icons.monetization_on, size: 28),
-                Text('neyQuest', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+                Text('M', style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold)),
+                Icon(Icons.monetization_on, size: 26),
+                Text('neyQuest', style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold)),
               ],
             ),
           ),
-          const SizedBox(height: 10),
           Container(
             color: const Color(0xFFA8E1E6),
             width: double.infinity,
@@ -118,14 +183,18 @@ class _NotificationPageState extends State<NotificationPage> {
               children: [
                 const CircleAvatar(
                   radius: 24,
-                  backgroundImage: NetworkImage('https://randomuser.me/api/portraits/men/75.jpg')
+                  backgroundImage: AssetImage('assets/images/logo.png'),
+                  backgroundColor: Colors.transparent,
                 ),
                 const SizedBox(width: 10),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
-                    Text('เงินเก็บรวม 6000 ฿', style: TextStyle(fontSize: 16)),
-                    Text('สู้ๆ น้า คุณวีรภัทร', style: TextStyle(fontSize: 14)),
+                  children: [
+                    Text('เงินเก็บรวม ${totalSaved.toStringAsFixed(2)} ฿', style: const TextStyle(fontSize: 16)),
+                    Text(
+                      'สู้ๆ น้า ${userName.isNotEmpty ? "คุณ$userName" : "คุณผู้ใช้"}',
+                      style: const TextStyle(fontSize: 14),
+                    ),
                   ],
                 ),
               ],
@@ -142,15 +211,18 @@ class _NotificationPageState extends State<NotificationPage> {
             child: Container(
               color: const Color(0xFFA8E1E6),
               padding: const EdgeInsets.symmetric(horizontal: 15),
-              child: ListView.builder(
-                itemCount: messages.length,
-                itemBuilder: (context, index) => Card(
-                  child: ListTile(
-                    leading: const Icon(Icons.notifications_active),
-                    title: Text(messages[index]),
-                  ),
-                ),
-              ),
+              child: messages.isEmpty
+                  ? const Center(child: Text("ยังไม่มีการแจ้งเตือน 😊"))
+                  : ListView.builder(
+                      itemCount: messages.length,
+                      itemBuilder: (context, index) => Card(
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        child: ListTile(
+                          leading: const Icon(Icons.notifications_active, color: Colors.orange),
+                          title: Text(messages[index]),
+                        ),
+                      ),
+                    ),
             ),
           ),
         ],
