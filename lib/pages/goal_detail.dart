@@ -134,10 +134,12 @@ class GoalDetailPage extends StatelessWidget {
                                 );
 
                                 if (confirm == true) {
-                                  await FirebaseFirestore.instance
-                                      .collection('goals')
-                                      .doc(documentId)
-                                      .delete();
+                                  final goalRef = FirebaseFirestore.instance.collection('goals').doc(documentId);
+                                  final historySnapshot = await goalRef.collection('history').get();
+                                  for (var doc in historySnapshot.docs) {
+                                    await doc.reference.delete();
+                                  }
+                                  await goalRef.delete();
                                   Navigator.pop(context);
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(
@@ -208,7 +210,7 @@ class GoalDetailPage extends StatelessWidget {
         children: const [
           Text('M', style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Colors.black)),
           Icon(Icons.monetization_on, size: 26, color: Colors.black),
-          Text('oneyQuest', style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Colors.black)),
+          Text('neyQuest', style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Colors.black)),
         ],
       ),
     );

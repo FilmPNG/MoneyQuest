@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -13,13 +14,26 @@ class _NotificationPageState extends State<NotificationPage> {
   List<String> messages = [];
   double totalSaved = 0.0;
   String userName = '';
+  Timer? _timer;
 
   @override
   void initState() {
     super.initState();
     _fetchTotalSaved();
-    _checkGoalsAndNotify();
     _fetchUserName();
+    _checkGoalsAndNotify();
+
+    _timer = Timer.periodic(const Duration(seconds: 10), (timer) async {
+      if (!mounted) return;
+      await _fetchTotalSaved();
+      await _checkGoalsAndNotify();
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
   }
 
   Future<void> _fetchTotalSaved() async {
@@ -38,6 +52,7 @@ class _NotificationPageState extends State<NotificationPage> {
       sum += saved;
     }
 
+    if (!mounted) return;
     setState(() {
       totalSaved = sum;
     });
@@ -50,11 +65,10 @@ class _NotificationPageState extends State<NotificationPage> {
     final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
     final data = doc.data();
 
-    if (data != null) {
-      setState(() {
-        userName = data['name'] ?? '';
-      });
-    }
+    if (!mounted || data == null) return;
+    setState(() {
+      userName = data['name'] ?? '';
+    });
   }
 
   Future<void> _checkGoalsAndNotify() async {
@@ -66,6 +80,8 @@ class _NotificationPageState extends State<NotificationPage> {
         .collection('goals')
         .where('userId', isEqualTo: uid)
         .get();
+
+    List<String> newMessages = [];
 
     for (var doc in snapshot.docs) {
       final data = doc.data();
@@ -81,6 +97,7 @@ class _NotificationPageState extends State<NotificationPage> {
 
       final targetDate = DateTime.tryParse(data['targetDate'] ?? '') ?? now;
       final duration = targetDate.difference(createdAt).inDays;
+      if (duration <= 0) continue;
 
       int elapsedUnits = savingMethod == 'daily'
           ? now.difference(createdAt).inDays
@@ -94,39 +111,43 @@ class _NotificationPageState extends State<NotificationPage> {
               ? (price / (duration / 7)) * elapsedUnits
               : (price / (duration / 30)) * elapsedUnits;
 
-      final nowNoon = DateTime(now.year, now.month, now.day, 12);
       final lastNotify = data['lastNotify']?.toDate();
       final shouldNotify = () {
-        if (savingMethod == 'daily') {
-          return lastNotify == null || nowNoon.difference(lastNotify).inHours >= 24;
-        } else if (savingMethod == 'weekly') {
-          return lastNotify == null || now.difference(lastNotify).inDays >= 7;
-        } else {
-          return lastNotify == null || now.difference(lastNotify).inDays >= 30;
-        }
+        final diff = now.difference(lastNotify ?? DateTime.fromMillisecondsSinceEpoch(0));
+        return savingMethod == 'daily'
+            ? diff.inSeconds >= 10
+            : savingMethod == 'weekly'
+                ? diff.inDays >= 7
+                : diff.inDays >= 30;
       }();
 
       if (saved < expected && shouldNotify) {
         final remaining = (expected - saved).clamp(1, price);
         final msg = 'โปรดอย่าลืมออมเงินสำหรับ "$name" จำนวน ${remaining.toStringAsFixed(2)} ฿';
-        messages.add(msg);
+        newMessages.add(msg);
 
         await doc.reference.update({'lastNotify': now});
 
+        if (!mounted) continue;
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(msg),
-              backgroundColor: Colors.orange.shade700,
-              behavior: SnackBarBehavior.floating,
-              duration: const Duration(seconds: 4),
-            ),
-          );
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(msg),
+                backgroundColor: Colors.orange.shade700,
+                behavior: SnackBarBehavior.floating,
+                duration: const Duration(seconds: 4),
+              ),
+            );
+          }
         });
       }
     }
 
-    setState(() {});
+    if (!mounted || newMessages.isEmpty) return;
+    setState(() {
+      messages.addAll(newMessages);
+    });
   }
 
   @override
