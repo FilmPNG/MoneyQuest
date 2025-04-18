@@ -45,7 +45,7 @@ class _AddGoalPageState extends State<AddGoalPage> {
 
     if (price == null || price <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("กรุณากรอกราคาเป็นจำนวนเต็มบวกเท่านั้น")),
+        const SnackBar(content: Text("กรุณากรอกราคาเป็นจำนวนเต็มเท่านั้น")),
       );
       return;
     }

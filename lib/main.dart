@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application_savemoney/notification_service.dart';
 import 'pages/home.dart';
 import 'pages/login.dart';
 import 'pages/sign_up.dart';
@@ -17,6 +18,7 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+  await NotificationService.initialize(); // เพิ่มตรงนี้
   runApp(MyApp());
 }
 

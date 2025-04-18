@@ -11,7 +11,7 @@ class Home extends StatelessWidget {
     final currentUser = FirebaseAuth.instance.currentUser;
     final currentUid = currentUser?.uid;
 
-    print("current UID = $currentUid"); // debug
+    /*print("current UID = $currentUid"); // debug */
 
     return Scaffold(
       backgroundColor: const Color(0xFFA8E1E6),
@@ -45,32 +45,32 @@ class Home extends StatelessWidget {
       ),
       body: Column(
         children: [
-          const SizedBox(height: 40),
+          
 
-          // 🧩 แสดง UID ด้านบน
-          Padding(
+          // 🧩 แสดง UID ด้านบน 
+         /* Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Text(
               "👤 UID ของคุณ: ${currentUid ?? 'ยังไม่ได้ login'}",
               style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black54),
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 10), */
 
           // โลโก้
                 Container(
-        width: double.infinity,
-        color: Colors.white,
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: const [
-            Text('M', style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Colors.black)),
-            Icon(Icons.monetization_on, size: 26, color: Colors.black),
-            Text('neyQuest', style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Colors.black)),
-          ],
-        ),
-      ),
+                  width: double.infinity,
+                  color: Colors.white,
+                  padding: const EdgeInsets.only(top: 40, bottom: 20),
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text('M', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+                      Icon(Icons.monetization_on, size: 28),
+                      Text('neyQuest', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                ),
 
 
           const SizedBox(height: 20),

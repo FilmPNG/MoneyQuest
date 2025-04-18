@@ -25,7 +25,8 @@ class _ContactPageState extends State<ContactPage> {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
 
-    final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+    final doc =
+        await FirebaseFirestore.instance.collection('users').doc(uid).get();
     final data = doc.data();
 
     if (data != null) {
@@ -92,7 +93,10 @@ class _ContactPageState extends State<ContactPage> {
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('เกิดข้อผิดพลาด: $e'), backgroundColor: Colors.red),
+        SnackBar(
+          content: Text('เกิดข้อผิดพลาด: $e'),
+          backgroundColor: Colors.red,
+        ),
       );
     }
   }
@@ -132,9 +136,18 @@ class _ContactPageState extends State<ContactPage> {
         },
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.notifications), label: 'Notification'),
-          BottomNavigationBarItem(icon: Icon(Icons.account_circle), label: 'Account'),
-          BottomNavigationBarItem(icon: Icon(Icons.contact_mail), label: 'Contact us'),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.notifications),
+            label: 'Notification',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.account_circle),
+            label: 'Account',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.contact_mail),
+            label: 'Contact us',
+          ),
         ],
       ),
       body: Column(
@@ -147,13 +160,22 @@ class _ContactPageState extends State<ContactPage> {
             child: Row(
               children: [
                 IconButton(
-                  icon: const Icon(Icons.arrow_back_ios_new, color: Colors.lightBlueAccent),
+                  icon: const Icon(
+                    Icons.arrow_back_ios_new,
+                    color: Colors.lightBlueAccent,
+                  ),
                   onPressed: () => Navigator.pop(context),
                 ),
                 const Spacer(),
-                const Text('M', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+                const Text(
+                  'M',
+                  style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+                ),
                 const Icon(Icons.monetization_on, size: 28),
-                const Text('neyQuest', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+                const Text(
+                  'neyQuest',
+                  style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+                ),
                 const Spacer(),
                 const SizedBox(width: 48),
               ],
@@ -164,11 +186,16 @@ class _ContactPageState extends State<ContactPage> {
           const SizedBox(height: 10),
           const CircleAvatar(
             radius: 50,
-            backgroundImage: AssetImage('assets/images/logo.png'), // ✅ ใส่ path โลโก้ของจริง
+            backgroundImage: AssetImage(
+              'assets/images/logo.png',
+            ), // ✅ ใส่ path โลโก้ของจริง
             backgroundColor: Colors.transparent,
           ),
           const SizedBox(height: 10),
-          const Text('ติดต่อผู้ดูแลระบบ', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          const Text(
+            'ติดต่อผู้ดูแลระบบ',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
 
           // Form Area
           Expanded(
@@ -202,7 +229,9 @@ class _ContactPageState extends State<ContactPage> {
                         labelText: 'ข้อความของคุณ',
                         filled: true,
                         fillColor: Colors.white,
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(15),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 20),
@@ -211,8 +240,13 @@ class _ContactPageState extends State<ContactPage> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF84D3DD),
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 40,
+                          vertical: 12,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20),
+                        ),
                       ),
                       child: const Text('ส่งข้อมูล'),
                     ),
@@ -221,6 +255,79 @@ class _ContactPageState extends State<ContactPage> {
               ),
             ),
           ),
+          const SizedBox(
+            height: 20,
+          ), // เพิ่มระยะห่างก่อนแสดงที่อยู่ เบอร์โทร และอีเมล
+          // ที่อยู่
+          // ที่อยู่
+          Padding(
+            padding: const EdgeInsets.only(left: 16.0), // เว้นขอบด้านซ้าย
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.location_on, // ไอคอนที่เกี่ยวกับที่อยู่
+                  color: Colors.black87,
+                  size: 20,
+                ),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text(
+                    'ที่อยู่ 999 ถ. พุทธมณฑลสาย 4 ต.ศาลายา อ.พุทธมณฑล นครปฐม',
+                    textAlign: TextAlign.left,
+                    style: TextStyle(fontSize: 12, color: Colors.black87),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 8), // เว้นระยะห่าง
+          // เบอร์โทรศัพท์
+          Padding(
+            padding: const EdgeInsets.only(left: 16.0), // เว้นขอบด้านซ้าย
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.phone, // ไอคอนที่เกี่ยวกับเบอร์โทร
+                  color: Colors.black87,
+                  size: 20,
+                ),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text(
+                    'โทร 091-111-1111',
+                    textAlign: TextAlign.left,
+                    style: TextStyle(fontSize: 12, color: Colors.black87),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 8), // เว้นระยะห่าง
+          // อีเมล
+          Padding(
+            padding: const EdgeInsets.only(left: 16.0), // เว้นขอบด้านซ้าย
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.email, // ไอคอนที่เกี่ยวกับอีเมล
+                  color: Colors.black87,
+                  size: 20,
+                ),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text(
+                    'อีเมล info@moneyquest.com',
+                    textAlign: TextAlign.left,
+                    style: TextStyle(fontSize: 12, color: Colors.black87),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 20), // เว้นระยะห่างจากขอบล่างสุด
         ],
       ),
     );
