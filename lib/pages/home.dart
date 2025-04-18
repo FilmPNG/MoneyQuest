@@ -11,7 +11,7 @@ class Home extends StatelessWidget {
     final currentUser = FirebaseAuth.instance.currentUser;
     final currentUid = currentUser?.uid;
 
-    print("🧩 current UID = $currentUid"); // ✅ debug ใน console
+    print("current UID = $currentUid"); // debug
 
     return Scaffold(
       backgroundColor: const Color(0xFFA8E1E6),
@@ -107,12 +107,12 @@ class Home extends StatelessWidget {
                       }
 
                       if (snapshot.hasError) {
-                        print("❌ error: ${snapshot.error}");
+                        print("error: ${snapshot.error}");
                         return Center(child: Text('เกิดข้อผิดพลาด: ${snapshot.error}'));
                       }
 
                       final goals = snapshot.data?.docs ?? [];
-                      print("✅ goals ทั้งหมดที่เจอ: ${goals.length}");
+                      print("goals ทั้งหมด: ${goals.length}");
 
                       if (goals.isEmpty) {
                         return const Center(child: Text('ยังไม่มีเป้าหมาย'));

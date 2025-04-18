@@ -40,6 +40,16 @@ class _AddGoalPageState extends State<AddGoalPage> {
       return;
     }
 
+    final priceText = _priceController.text.trim();
+    final price = int.tryParse(priceText);
+
+    if (price == null || price <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("กรุณากรอกราคาเป็นจำนวนเต็มบวกเท่านั้น")),
+      );
+      return;
+    }
+
     try {
       final currentUser = FirebaseAuth.instance.currentUser;
 
@@ -52,11 +62,11 @@ class _AddGoalPageState extends State<AddGoalPage> {
 
       final goalData = {
         'name': _goalNameController.text.trim(),
-        'price': double.tryParse(_priceController.text) ?? 0.0,
+        'price': price,
         'targetDate': selectedDate!.toIso8601String(),
         'savingMethod': _savingMethod,
         'createdAt': FieldValue.serverTimestamp(),
-        'userId': currentUser.uid, // ✅ จำเป็นต้องมี
+        'userId': currentUser.uid,
       };
 
       await FirebaseFirestore.instance.collection('goals').add(goalData);
@@ -231,4 +241,4 @@ class _AddGoalPageState extends State<AddGoalPage> {
       ),
     );
   }
-}
+} 
