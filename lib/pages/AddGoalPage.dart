@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_application_savemoney/notification_service.dart';
+
 
 class AddGoalPage extends StatefulWidget {
   const AddGoalPage({super.key});
@@ -215,7 +217,13 @@ class _AddGoalPageState extends State<AddGoalPage> {
                           ),
                           padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 14),
                         ),
-                        onPressed: _saveGoalToFirestore,
+                        onPressed: () async {
+                            await _saveGoalToFirestore(); // เรียกฟังก์ชันเซฟ
+                            await NotificationService.showNotification(
+                              'แจ้งเตือนการออมเงิน',
+                              'เป้าหมายถูกสร้างเรียบร้อยแล้ว!',
+                            );
+                          },
                         child: const Text('สร้างเป้าหมาย'),
                       ),
                     ),
