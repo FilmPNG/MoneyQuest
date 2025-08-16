@@ -1,4 +1,4 @@
-# flutter_application_savemoney fuck this project
+# flutter_application_savemoney fuck this project bull shit fuck off
 
 A new Flutter project.
 
