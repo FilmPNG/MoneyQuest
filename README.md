@@ -21,12 +21,12 @@ Designed with a clean UI, progress tracking, and simple goal management features
 
 ---
 
-## 📸 Screenshots
-> (Add screenshots of your app here)  
+## Screenshots
+ 
 
 | Home Screen | Goal Detail | Add New Goal |
 |-------------|-------------|--------------|
-| ![Home](screenshots/home.png) | ![Detail](screenshots/detail.png) | ![Add Goal](screenshots/add_goal.png) |
+| ![Home](home.png) | ![Detail](detail.png) | ![Add Goal](add_goal.png) |
 
 ---
 
@@ -37,4 +37,4 @@ Developed by Your Name
 💌 Contact: weerapat17827@gmail.com
 🌐 Portfolio: [weerapatserver.site](https://weerapatserver.site)
 
-If you like this project, don’t forget to give it a star on GitHub!
+
