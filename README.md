@@ -1,21 +1,40 @@
+# 💰 SaveMoney - Flutter Application
 
-# flutter_application_savemoney
+A modern **Flutter mobile app** to help you **manage your savings goals** easily and stay motivated toward financial success.  
+Designed with a clean UI, progress tracking, and simple goal management features.  
+
+---
+
+## Features
+-  Create and manage multiple saving goals (e.g., Buy iPhone, Travel, Emergency Fund).  
+-  Track progress with percentage and visual indicators.  
+-  Get notified when you reach milestones.  
+-  Beautiful and responsive Flutter UI.  
+-  Data stored securely on device (extendable to Firebase/MySQL).  
+
+---
+
+## New Function
+- Added **Goal Detail Screen**: tap on any goal to view full details and history.  
+- Support for **progress updates** with smooth animation.  
+- UI improvements with pastel theme colors.  
+
+---
+
+## 📸 Screenshots
+> (Add screenshots of your app here)  
+
+| Home Screen | Goal Detail | Add New Goal |
+|-------------|-------------|--------------|
+| ![Home](screenshots/home.png) | ![Detail](screenshots/detail.png) | ![Add Goal](screenshots/add_goal.png) |
+
+---
 
 
-A new Flutter project.
 
-## Getting Started
+👨‍💻 Author
+Developed by Your Name
+💌 Contact: weerapat17827@gmail.com
+🌐 Portfolio: [weerapatserver.site](https://weerapatserver.site)
 
-This project is a starting point for a Flutter application.
-
-A few resources to get you started if this is your first Flutter project:
-
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
-
-
-New fuction
+If you like this project, don’t forget to give it a star on GitHub!
