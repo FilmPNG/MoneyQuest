@@ -34,7 +34,8 @@ Designed with a clean UI, progress tracking, and simple goal management features
 
 👨‍💻 Author
 Developed by Your Name
-💌 Contact: weerapat17827@gmail.com
+💌 Contact: weerapat17827@gmail.com , tasbcc170@gmail.com
 🌐 Portfolio: [weerapatserver.site](https://weerapatserver.site)
+🌐 Portfolio: [tasportfolio.site](https://tasportfolio.site)
 
 
